@@ -1,0 +1,49 @@
+name: Executar Automacao de Dados Diaria
+
+on:
+  schedule:
+    # 06h00, 08h00 e 09h00 de Segunda a Sexta (UTC = BRT + 3)
+    - cron: '0 9,11,12 * * 1-5'
+
+    # 18h00 de Segunda a Sexta
+    - cron: '0 21 * * 1-5'
+
+    # 21h00 e 23h00 (UTC 0h e 2h de Terca a Sabado)
+    - cron: '0 0,2 * * 2-6'
+
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v6
+
+    - name: Configurar Fuso Horario
+      run: sudo timedatectl set-timezone America/Sao_Paulo
+
+    - name: Configurar Python
+      uses: actions/setup-python@v6
+      with:
+        python-version: '3.13'
+
+    - name: Instalar dependencias
+      run: |
+        python -m pip install --upgrade pip
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+    - name: Executar script de processamento
+      run: python run_all.py || true
+
+    - name: Commitar e enviar novas alteracoes de dados
+      run: |
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        git add data/
+        git commit -m "Bot: Atualizacao automatica de dados [skip ci]" || echo "Nenhuma alteracao nos dados hoje."
+        git push origin main
